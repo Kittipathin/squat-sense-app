@@ -17,5 +17,5 @@ export function StatusChip({ label, tone = 'neutral', language, style, ...props 
 }
 
 const styles = StyleSheet.create({
-  chip: { alignSelf: 'center', backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+  chip: { alignSelf: 'center', backgroundColor: colors.glassStrong, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
 });

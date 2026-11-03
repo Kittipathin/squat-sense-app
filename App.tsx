@@ -32,10 +32,11 @@ import {
   House,
 } from 'lucide-react-native';
 
-import { ThemeProvider, colors, radius, sizes, spacing, typography, type StatusTone } from './src/theme';
+import { ThemeProvider, colors, radius, shadows, sizes, spacing, typography, type StatusTone } from './src/theme';
 import {
   AppHeader,
   AppText as Text,
+  GlowBackground,
   PrimaryButton,
   SecondaryButton,
   SectionCard,
@@ -90,6 +91,9 @@ const STATE_LABEL: Record<RepState, string> = {
   BOTTOM: 'BOTTOM POSITION',
   ASCENDING: 'ASCENDING',
 };
+
+const workoutTone = (lastResult: RepResult | null, repState: RepState): StatusTone =>
+  lastResult ? RESULT_TONE[lastResult] : repState === 'BOTTOM' ? 'success' : 'neutral';
 
 const formatDuration = (ms: number) => {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -501,6 +505,13 @@ function SquatSenseMain() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+      <GlowBackground
+        tint={
+          screen === 'WORKOUT' && isActive && workoutTone(lastResult, repState) !== 'neutral'
+            ? TONE_COLOR[workoutTone(lastResult, repState)]
+            : null
+        }
+      />
 
       {screen === 'HOME' && (
         <HomeScreen
@@ -810,18 +821,14 @@ function WorkoutScreen({
   onFinish: () => void;
   headerAction: React.ReactNode;
 }) {
-  const tone: StatusTone = lastResult
-    ? RESULT_TONE[lastResult]
-    : repState === 'BOTTOM'
-      ? 'success'
-      : 'neutral';
+  const tone: StatusTone = workoutTone(lastResult, repState);
   const toneColor = isActive ? TONE_COLOR[tone] : colors.textSecondary;
 
   const depthPct = Math.min(100, Math.max(0, ((90 - angle) / (90 - targetAngle)) * 100));
   const reachedDepth = angle <= targetAngle;
 
   return (
-    <View style={[styles.screen, styles.workoutScreen, { borderColor: toneColor }]}>
+    <View style={styles.screen}>
       <View style={styles.topBar}>
         <View style={styles.timerPill}>
           <Clock color={colors.textSecondary} size={14} />
@@ -835,7 +842,7 @@ function WorkoutScreen({
 
       <View style={styles.workoutBody}>
         <View style={styles.repBlock}>
-          <Text style={styles.repNumber}>
+          <Text style={[styles.repNumber, styles.repGlow]}>
             {stats.goodReps}
           </Text>
           <Text variant="small" weight="bold" style={styles.mutedLabel}>VALID REPS</Text>
@@ -1039,6 +1046,7 @@ function GridStat({ value, label, color }: { value: string; label: string; color
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
+  repGlow: { textShadowColor: 'rgba(255, 255, 255, 0.25)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 24 },
   screen: { flex: 1 },
   flex1: { flex: 1 },
   tabular: { fontVariant: ['tabular-nums'] },
@@ -1057,7 +1065,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: colors.glassStrong,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
   },
   bottomBar: {
     paddingHorizontal: spacing.xl,
@@ -1077,14 +1087,15 @@ const styles = StyleSheet.create({
   difficultyRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xl },
   diffOption: {
     flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
+    backgroundColor: colors.glass,
+    borderRadius: radius.xl,
     borderWidth: 1.5,
-    borderColor: colors.surface,
+    borderColor: colors.glassBorder,
     padding: spacing.lg,
     gap: spacing.xs,
+    boxShadow: shadows.float,
   },
-  diffOptionActive: { borderColor: colors.primary, backgroundColor: colors.surface },
+  diffOptionActive: { borderColor: colors.primary, backgroundColor: colors.primaryGlass },
   radio: {
     width: 20,
     height: 20,
@@ -1105,7 +1116,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: radius.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primaryGlass,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1128,9 +1139,11 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: colors.card,
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: colors.surface,
+    borderColor: colors.glassBorder,
+    borderTopColor: colors.glassHighlight,
+    boxShadow: shadows.primaryGlow,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
@@ -1146,12 +1159,13 @@ const styles = StyleSheet.create({
   targetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
 
   // Workout
-  workoutScreen: { borderWidth: 3, borderRadius: radius.lg, margin: spacing.xs },
   timerPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.card,
+    backgroundColor: colors.glassStrong,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
     height: sizes.touchTarget - 8,
@@ -1169,7 +1183,7 @@ const styles = StyleSheet.create({
   depthHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   depthTrack: {
     height: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.glassStrong,
     borderRadius: radius.pill,
     overflow: 'hidden',
     justifyContent: 'center',
@@ -1190,7 +1204,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     minHeight: 16,
   },
-  dot: { width: 14, height: 14, borderRadius: 7 },
+  dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 1, borderColor: colors.glassHighlight },
   workoutActions: { flexDirection: 'row', gap: spacing.md },
 
   // Summary
@@ -1205,7 +1219,7 @@ const styles = StyleSheet.create({
   accuracyTrack: {
     width: '100%',
     height: 10,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.glassStrong,
     borderRadius: radius.pill,
     overflow: 'hidden',
   },

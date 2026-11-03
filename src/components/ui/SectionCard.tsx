@@ -1,5 +1,5 @@
 import { StyleSheet, View, type ViewProps } from 'react-native';
-import { colors, radius, spacing, type FontLanguage } from '../../theme';
+import { colors, radius, shadows, spacing, type FontLanguage } from '../../theme';
 import { AppText } from './AppText';
 
 export interface SectionCardProps extends ViewProps {
@@ -17,6 +17,14 @@ export function SectionCard({ title, language, children, style, ...props }: Sect
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: colors.card, borderColor: colors.surface, borderWidth: 1, borderRadius: radius.lg, padding: spacing.xl },
+  card: {
+    backgroundColor: colors.glass,
+    borderColor: colors.glassBorder,
+    borderTopColor: colors.glassHighlight,
+    borderWidth: 1,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    boxShadow: shadows.float,
+  },
   title: { color: colors.textSecondary, marginBottom: spacing.md },
 });

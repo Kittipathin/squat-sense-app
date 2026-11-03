@@ -5,3 +5,4 @@ export { StatCard, type StatCardProps } from './StatCard';
 export { StatusChip, type StatusChipProps } from './StatusChip';
 export { SectionCard, type SectionCardProps } from './SectionCard';
 export { AppHeader, type AppHeaderProps } from './AppHeader';
+export { GlowBackground, type GlowBackgroundProps } from './GlowBackground';

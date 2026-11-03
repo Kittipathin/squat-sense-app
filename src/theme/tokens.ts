@@ -9,7 +9,15 @@ export const colors = {
   text: '#FFFFFF',
   textSecondary: '#8C9AB4',
   backdrop: 'rgba(8, 13, 27, 0.8)',
-  overlay: 'rgba(8, 13, 27, 0.95)',
+  overlay: 'rgba(8, 13, 27, 0.88)',
+  // Ambient background light (not an accent; never used for controls or status)
+  ambient: '#6D3FD9',
+  // Frosted-glass surfaces
+  glass: 'rgba(255, 255, 255, 0.06)',
+  glassStrong: 'rgba(255, 255, 255, 0.10)',
+  glassBorder: 'rgba(255, 255, 255, 0.12)',
+  glassHighlight: 'rgba(255, 255, 255, 0.22)',
+  primaryGlass: 'rgba(7, 153, 219, 0.18)',
 } as const;
 
 export const spacing = {
@@ -24,7 +32,13 @@ export const spacing = {
   screenBottom: 40,
 } as const;
 
-export const radius = { xs: 6, sm: 12, md: 16, lg: 20, pill: 999 } as const;
+export const radius = { xs: 6, sm: 12, md: 16, lg: 20, xl: 24, pill: 999 } as const;
+
+// Soft lift for floating glass cards and the primary button.
+export const shadows = {
+  float: '0px 12px 32px rgba(0, 0, 0, 0.35)',
+  primaryGlow: '0px 8px 24px rgba(7, 153, 219, 0.45)',
+} as const;
 export const opacity = { pressed: 0.75, disabled: 0.45 } as const;
 export const sizes = { touchTarget: 48, icon: 20, statIcon: 24, headerIcon: 26 } as const;
 
@@ -62,4 +76,4 @@ export const statusColors = {
   error: colors.error,
 } satisfies Record<StatusTone, string>;
 
-export const theme = { colors, spacing, radius, typography, opacity, sizes, statusColors } as const;
+export const theme = { colors, spacing, radius, shadows, typography, opacity, sizes, statusColors } as const;

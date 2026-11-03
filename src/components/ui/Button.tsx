@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, TouchableOpacity, View, type TouchableOpacityProps } from 'react-native';
-import { colors, opacity, radius, sizes, spacing, type FontLanguage } from '../../theme';
+import { colors, opacity, radius, shadows, sizes, spacing, type FontLanguage } from '../../theme';
 import { AppText } from './AppText';
 
 export type ButtonProps = Omit<TouchableOpacityProps, 'children'> & { language?: FontLanguage } & (
@@ -25,9 +25,9 @@ export function Button({ label, icon, language, style, disabled, accessibilitySt
 }
 
 const styles = StyleSheet.create({
-  base: { minHeight: sizes.touchTarget, minWidth: sizes.touchTarget, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.lg, paddingHorizontal: spacing.xl, borderRadius: radius.md },
-  primary: { backgroundColor: colors.primary },
-  secondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.textSecondary },
+  base: { minHeight: sizes.touchTarget, minWidth: sizes.touchTarget, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.lg, paddingHorizontal: spacing.xl, borderRadius: radius.lg },
+  primary: { backgroundColor: colors.primary, boxShadow: shadows.primaryGlow },
+  secondary: { backgroundColor: colors.glassStrong, borderWidth: 1, borderColor: colors.glassBorder, borderTopColor: colors.glassHighlight },
   iconOnly: { paddingHorizontal: spacing.lg },
   label: { flexShrink: 1, textAlign: 'center' },
   disabled: { opacity: opacity.disabled },
