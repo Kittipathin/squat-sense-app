@@ -46,7 +46,7 @@ Inspection baseline: 2026-11-03, source commit `fc74d33`. The inspection changed
 
 - Phone placement assumption: **Front trouser pocket, screen facing out, top of the phone pointing toward the hip.**
   - Existing countdown instruction at `App.tsx:449` says `Put phone in front pocket & stand upright`, which is consistent with the confirmed placement but omits screen direction and top-of-phone orientation. The code does not select a leg or verify orientation. Its angle interpretation requires the phone's long/y axis to follow the thigh; a loose pocket can move independently. Pocket stability still requires physical-device validation.
-- UI language: <<< แก้ตรงนี้: Thai / English >>>
+- UI language: **English** (current labels and `en-US` speech).
   - **TODO:** Choose the product language. Current labels are English and `speak` explicitly uses `en-US`; there is no localization system.
 - Target flow: **HOME → CALIBRATION → WORKOUT → SUMMARY**.
   - Current flow: dashboard → 3-second countdown → workout on the same dashboard → summary modal on stop only if `totalReps > 0`. Calibration and separate routed screens are not implemented.
@@ -79,6 +79,18 @@ Inspection baseline: 2026-11-03, source commit `fc74d33`. The inspection changed
 - Pixel 10 / Expo Go: reviewed dashboard rendering, switched difficulty, started the countdown/workout, confirmed difficulty controls disable while active, stopped, and reset. The countdown now fills the screen. No simulated reps or fabricated stats were injected; summary-with-reps and Thai text were not visually exercised on a device.
 - Sensor/workout state, handlers, callbacks, thresholds, and accuracy calculation were compared against `main` and remained unchanged. No physical-device sensor validation or iOS runtime test was performed.
 - `expo install --check` reports only the existing Expo patch update recommendation (`57.0.27` to `~57.0.31`). This task did not upgrade the SDK.
+
+
+## Screen flow (implemented 2026-11-03)
+
+`App.tsx` now renders four screens via local `screen` state (no Expo Router): **HOME → CALIBRATION → WORKOUT → SUMMARY**.
+
+- HOME: header with voice on/off toggle, real sensor availability chip (`Accelerometer/Gyroscope.isAvailableAsync`), BEGINNER/PRO selector, last-session card (in-memory only, no persistence) or "How it works", START COACH.
+- CALIBRATION: placement instructions + "I'M READY" → existing 3-2-1 countdown (now cancellable; interval cleared on cancel/unmount). This is preparation only — there is still no measured calibration.
+- WORKOUT: large valid-rep count, state chip, feedback, depth bar with target marker, per-attempt result dots, elapsed active time, Pause/Resume, End (confirm dialog). Screen border tints by last result. Pauses automatically when the app leaves the foreground. Android back asks to end.
+- SUMMARY: accuracy (`--` with zero attempts), valid/incorrect/total/duration, form-error breakdown with most common error, rule-based tips, TRY AGAIN / HOME.
+- Per-attempt results are derived by diffing the existing `stats` counters (adapter); the accelerometer/gyroscope detector `useEffect` is byte-for-byte unchanged apart from `speak` honoring the mute toggle.
+- Not verified here: `npm` install, lint, and real typecheck could not run in the editing environment (stub-typed check only). Run `npx expo lint` and `npx tsc --noEmit` locally.
 
 ## Sensor logic map
 
