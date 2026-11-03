@@ -1,3 +1,11 @@
+/**
+ * SquatSense — Biomechanics Motion Coach
+ * Squat form coaching app using the phone's accelerometer and gyroscope.
+ *
+ * Authors:
+ *   Kittipath Inarree     6802041510279
+ *   Pongsakorn Srisakat   6802041510066
+ */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Alert,
@@ -578,7 +586,6 @@ function SquatSenseMain() {
       const now = Date.now();
       const currentState = stateRef.current;
       const currentTarget = difficultyRef.current === 'BEGINNER' ? 35 : 25;
-      const shallowLimit = difficultyRef.current === 'BEGINNER' ? 42 : 30;
 
       if (currentState === 'STANDING') {
         if (calculatedAngle < 65) {
@@ -601,11 +608,15 @@ function SquatSenseMain() {
           setFeedback('Good depth! Push up');
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         } else if (
+          // Any reversal before reaching the target counts as shallow
+          // (fixes the near-miss lock where the state stayed DESCENDING).
           calculatedAngle > minAngleInRepRef.current + 12 &&
-          minAngleInRepRef.current > shallowLimit
+          minAngleInRepRef.current > currentTarget
         ) {
           stateRef.current = 'ASCENDING';
           setRepState('ASCENDING');
+          // Mark this attempt as already classified so ASCENDING does not count it again.
+          minAngleInRepRef.current = 90;
           setFeedback('Too shallow!');
           speak('Too shallow');
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);

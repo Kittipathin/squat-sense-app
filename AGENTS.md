@@ -92,6 +92,13 @@ Inspection baseline: 2026-11-03, source commit `fc74d33`. The inspection changed
 - Per-attempt results are derived by diffing the existing `stats` counters (adapter); the accelerometer/gyroscope detector `useEffect` is byte-for-byte unchanged apart from `speak` honoring the mute toggle.
 - Not verified here: `npm` install, lint, and real typecheck could not run in the editing environment (stub-typed check only). Run `npx expo lint` and `npx tsc --noEmit` locally.
 
+## Changes on 2026-11-03 (evening)
+
+- **Detector fix (authorized by the user):** the shallow-reversal rule in `DESCENDING` now uses `minimum > target` instead of the old shallow limit (42° / 30°), and sets the minimum to 90 after counting so `ASCENDING` cannot classify the same attempt again. This removes the near-miss state lock (finding 1). Offline replay: good reps unchanged; 37°/40° (Beginner) and 28° (Pro) now count as shallow and return to `STANDING`. No device re-validation yet.
+- Workout UI: depth ring around the rep counter, bounce + green flash on valid reps, animated ambient glow (`GlowBackground`, respects Reduce Motion), Thai/English toggle (default Thai). Detector feedback/speech keys stay English and are translated at display/speech time; Thai speech only when a Thai TTS voice exists.
+- `app.json`: name `SquatSense`, `userInterfaceStyle: dark`, Android package `com.kittipath.squatsense`. Added `eas.json` with a `preview` profile that builds an APK.
+- Authors (header comment in `App.tsx`/`index.ts` and `README.md`): Kittipath Inarree 6802041510279, Pongsakorn Srisakat 6802041510066.
+
 ## Sensor logic map
 
 Line references below are from the inspection baseline; use function names if lines move.

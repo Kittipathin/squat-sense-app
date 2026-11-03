@@ -1,3 +1,11 @@
+/**
+ * SquatSense — Biomechanics Motion Coach
+ * Squat form coaching app using the phone's accelerometer and gyroscope.
+ *
+ * Authors:
+ *   Kittipath Inarree     6802041510279
+ *   Pongsakorn Srisakat   6802041510066
+ */
 import { registerRootComponent } from 'expo';
 
 import App from './App';
