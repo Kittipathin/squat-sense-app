@@ -10,7 +10,7 @@ Inspection baseline: 2026-11-03, source commit `fc74d33`. The inspection changed
 - Framework: Expo `~57.0.27`, React `19.2.3`, React Native `0.86.3`.
 - Package manager: npm (`package-lock.json`; no Bun lockfile at inspection).
 - Entry: `index.ts` registers `App` using `registerRootComponent`.
-- `App.tsx`: `App` supplies `SafeAreaProvider`; `SquatSenseMain` owns all UI, workout state, sensor listeners, speech/haptics, and styles. There are no separate sensor hooks/services or screen modules.
+- `App.tsx`: `App` supplies `SafeAreaProvider` and the font-loading `ThemeProvider`; `SquatSenseMain` owns the dashboard, workout state, sensor listeners, and speech/haptics. Reusable visual primitives live in `src/components/ui/` and theme tokens in `src/theme/`. There are no separate sensor hooks/services or screen modules.
 - Current UI: one scrollable dashboard containing difficulty selection, angle gauge, rep state/feedback, valid reps, accuracy, diagnostics, and start/stop/reset controls; a countdown overlay; a React Native summary `Modal`.
 - Current navigation: local conditional rendering and modal visibility only. Expo Router is not installed and `src/app/` does not exist. The routing rules below apply to future navigation work; do not describe them as already implemented.
 - State: local `useState` for UI and counters; `useRef` for the state machine, selected difficulty, minimum angle, timestamps, peak angular speed, and speech throttle. Functional updates increment stats. No global store, persistence, backend, or history.
@@ -29,6 +29,8 @@ Inspection baseline: 2026-11-03, source commit `fc74d33`. The inspection changed
 | `react-native-safe-area-context` | `~5.7.0` | Safe-area provider and view |
 | `lucide-react-native` | `^1.55.0` | Icons |
 | `react-native-svg` | `15.15.4` | SVG support for icons |
+| `expo-font` | `~57.0.4` | Runtime loading of bundled font faces |
+| `@expo-google-fonts/inter`, `@expo-google-fonts/ibm-plex-sans-thai` | See `package.json` | Offline font assets |
 | `typescript`, `@types/react` | `~6.0.3`, `~19.2.2` | Type checking |
 | `eslint`, `eslint-config-expo` | `^9.0.0`, `~57.0.2` | Flat-config linting via `eslint.config.js` |
 
@@ -66,7 +68,17 @@ Inspection baseline: 2026-11-03, source commit `fc74d33`. The inspection changed
 - Fonts: **Inter** for English, **IBM Plex Sans Thai** for Thai.
 - Card radius: **16–20px** (use the equivalent React Native logical units).
 - One primary accent only; green/orange/red are reserved for form status.
-- Current UI has inline/hardcoded styles, different colors (including purple wobble and orange decorative accents), and some 24-unit card radii. Neither requested font is loaded or bundled. Treat this section as the target, not a claim of implementation.
+- The reusable implementation lives in `src/theme/` (tokens, bundled font assets, font-loading provider) and `src/components/ui/` (`PrimaryButton`, `SecondaryButton`, `StatCard`, `StatusChip`, `SectionCard`, `AppHeader`, and `AppText`). See `src/components/ui/README.md` for usage. `AppHeader.settingsAction` is an optional slot; no settings navigation currently exists.
+- Inter and IBM Plex Sans Thai are loaded through `expo-font` from the corresponding `@expo-google-fonts` packages, with a system-font fallback on failure. English/Thai regular, medium, semibold, and bold faces are bundled for offline use.
+- The existing dashboard, countdown, and summary now use these tokens/components. Empty accuracy displays `--`; the underlying accuracy formula and sensor/workout logic are unchanged. `StyleSheet.absoluteFill` replaces the removed `absoluteFillObject` API. The inspection findings below describe the original baseline, not these later UI fixes.
+
+### Design system verification (2026-11-03)
+
+- Lint and TypeScript checks passed without errors or warnings after the theme integration.
+- `npx expo export --platform android --platform ios` built production Hermes JS bundles and included all eight font files in `dist/`. This is a bundle/assets build, not an APK/IPA or EAS native build.
+- Pixel 10 / Expo Go: reviewed dashboard rendering, switched difficulty, started the countdown/workout, confirmed difficulty controls disable while active, stopped, and reset. The countdown now fills the screen. No simulated reps or fabricated stats were injected; summary-with-reps and Thai text were not visually exercised on a device.
+- Sensor/workout state, handlers, callbacks, thresholds, and accuracy calculation were compared against `main` and remained unchanged. No physical-device sensor validation or iOS runtime test was performed.
+- `expo install --check` reports only the existing Expo patch update recommendation (`57.0.27` to `~57.0.31`). This task did not upgrade the SDK.
 
 ## Sensor logic map
 
@@ -161,7 +173,7 @@ Diagnostics for an attempt that reached depth:
 
 - **TODO — product decisions:** resolve the UI language placeholder above. Phone placement and orientation are confirmed in the product assumptions.
 - **TODO — flow:** implement HOME → CALIBRATION → WORKOUT → SUMMARY when requested; there is currently no calibration or routed navigation.
-- **TODO — design:** implement the specified palette, font loading, card radii, status-only colors, and honest empty states in a separately authorized UI task.
+- **TODO — design:** complete the future routed flow and remaining unmeasured angle/status empty states in separately authorized work. Theme tokens, fonts, reusable components, and the accuracy empty state are implemented.
 - **TODO — sensor reliability:** obtain explicit authorization before fixing state-lock thresholds, calibration/filtering, diagnostic semantics, timestamp handling, or sample validation; validate on physical phones with the agreed mounting.
 - **TODO — verification/release:** establish automated regression tests, device validation protocol, and EAS build profiles/configuration when requested. No test runner, test script, or test files currently exist. Workout history/persistence is absent.
 - **TODO — existing defects:** address the overlay API, countdown cancellation/speech timing, lifecycle handling, and session semantics in appropriately scoped follow-up tasks.
@@ -186,7 +198,7 @@ Use the repo root. npm is current; use `bunx` instead of `npx` if a future task 
 | `npm run web` | Existing web script; web setup/runtime is not verified |
 | `npx expo start --host lan` | Start Metro with network binding; worked with ADB reverse in this Windows session |
 | `npm run lint` / `npx expo lint` | ESLint static check |
-| `npx tsc --noEmit` | TypeScript static check; currently fails as recorded above |
+| `npx tsc --noEmit` | TypeScript static check; the original overlay API failure is fixed |
 | `npx expo-doctor` | Diagnose Expo configuration and dependency compatibility |
 | `npx expo install --check` | Check SDK dependency compatibility |
 | `npx expo export --platform android` | Optional JS/assets bundle check, not a native APK build or sensor test |

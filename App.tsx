@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
-  Text,
   View,
   TouchableOpacity,
   ScrollView,
@@ -25,7 +24,16 @@ import {
   Sliders,
 } from 'lucide-react-native';
 
-import { ThemeProvider } from './src/theme';
+import { ThemeProvider, colors, radius, sizes, spacing, typography } from './src/theme';
+import {
+  AppHeader,
+  AppText as Text,
+  PrimaryButton,
+  SecondaryButton,
+  SectionCard,
+  StatCard,
+  StatusChip,
+} from './src/components/ui';
 
 type RepState = 'STANDING' | 'DESCENDING' | 'BOTTOM' | 'ASCENDING';
 type Difficulty = 'BEGINNER' | 'PRO';
@@ -277,30 +285,29 @@ function SquatSenseMain() {
       : 100;
 
   const getPerformanceGrade = () => {
-    if (stats.totalReps === 0) return { grade: 'N/A', color: '#94A3B8' };
-    if (accuracy >= 85) return { grade: 'Grade A', color: '#10B981' };
-    if (accuracy >= 70) return { grade: 'Grade B', color: '#38BDF8' };
-    if (accuracy >= 50) return { grade: 'Grade C', color: '#F59E0B' };
-    return { grade: 'Needs Work', color: '#EF4444' };
+    if (stats.totalReps === 0) return { grade: 'N/A', color: colors.textSecondary };
+    if (accuracy >= 85) return { grade: 'Grade A', color: colors.success };
+    if (accuracy >= 70) return { grade: 'Grade B', color: colors.primary };
+    if (accuracy >= 50) return { grade: 'Grade C', color: colors.warning };
+    return { grade: 'Needs Work', color: colors.error };
   };
 
   const performance = getPerformanceGrade();
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B0F19" />
+      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.titleRow}>
-            <Activity color="#38BDF8" size={26} />
-            <Text style={styles.headerTitle}>SquatSense</Text>
-          </View>
-          <Text style={styles.headerSubtitle}>Biomechanics Motion Coach</Text>
-        </View>
+        <AppHeader
+          title="SquatSense"
+          subtitle="Biomechanics Motion Coach"
+          icon={<Activity color={colors.primary} size={sizes.headerIcon} />}
+          style={styles.header}
+        />
 
-        <View style={styles.difficultyContainer}>
+        <SectionCard style={styles.difficultyContainer}>
           <View style={styles.difficultyLabelRow}>
-            <Sliders color="#64748B" size={14} />
+            <Sliders color={colors.textSecondary} size={14} />
             <Text style={styles.difficultyLabel}>DEPTH DIFFICULTY</Text>
           </View>
           <View style={styles.difficultyButtonGroup}>
@@ -311,6 +318,8 @@ function SquatSenseMain() {
               ]}
               onPress={() => handleDifficultyChange('BEGINNER')}
               disabled={isActive || countdown !== null}
+              accessibilityRole="button"
+              accessibilityState={{ selected: difficulty === 'BEGINNER', disabled: isActive || countdown !== null }}
             >
               <Text
                 style={[
@@ -329,6 +338,8 @@ function SquatSenseMain() {
               ]}
               onPress={() => handleDifficultyChange('PRO')}
               disabled={isActive || countdown !== null}
+              accessibilityRole="button"
+              accessibilityState={{ selected: difficulty === 'PRO', disabled: isActive || countdown !== null }}
             >
               <Text
                 style={[
@@ -340,9 +351,9 @@ function SquatSenseMain() {
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </SectionCard>
 
-        <View style={styles.gaugeCard}>
+        <SectionCard style={styles.gaugeCard}>
           <Text style={styles.gaugeLabel}>THIGH ANGLE</Text>
           <View style={styles.angleDisplay}>
             <Text style={styles.angleValue}>{currentAngle}°</Text>
@@ -362,34 +373,33 @@ function SquatSenseMain() {
                     )
                   )}%`,
                   backgroundColor:
-                    currentAngle <= targetAngle ? '#10B981' : '#38BDF8',
+                    currentAngle <= targetAngle ? colors.success : colors.primary,
                 },
               ]}
             />
           </View>
 
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusBadgeText}>{repState}</Text>
-          </View>
+          <StatusChip label={repState} style={styles.statusBadge} />
 
           <Text style={styles.feedbackText}>{feedback}</Text>
-        </View>
+        </SectionCard>
 
         <View style={styles.counterGrid}>
-          <View style={[styles.counterCard, styles.mainCounter]}>
-            <Flame color="#F59E0B" size={24} />
-            <Text style={styles.counterNumber}>{stats.goodReps}</Text>
-            <Text style={styles.counterTitle}>VALID REPS</Text>
-          </View>
-
-          <View style={styles.counterCard}>
-            <CheckCircle2 color="#10B981" size={24} />
-            <Text style={styles.counterNumber}>{accuracy}%</Text>
-            <Text style={styles.counterTitle}>ACCURACY</Text>
-          </View>
+          <StatCard
+            label="VALID REPS"
+            value={stats.goodReps}
+            icon={<Flame color={colors.primary} size={sizes.statIcon} />}
+            style={styles.counterCard}
+          />
+          <StatCard
+            label="ACCURACY"
+            value={stats.totalReps > 0 ? `${accuracy}%` : null}
+            icon={<CheckCircle2 color={colors.primary} size={sizes.statIcon} />}
+            style={styles.counterCard}
+          />
         </View>
 
-        <View style={styles.breakdownCard}>
+        <SectionCard style={styles.breakdownCard}>
           <Text style={styles.breakdownTitle}>FORM DIAGNOSTICS</Text>
           <View style={styles.breakdownRow}>
             <View style={styles.breakdownItem}>
@@ -397,48 +407,49 @@ function SquatSenseMain() {
               <Text style={styles.breakdownLabel}>Total</Text>
             </View>
             <View style={styles.breakdownItem}>
-              <Text style={[styles.breakdownValue, { color: '#EF4444' }]}>
+              <Text style={[styles.breakdownValue, { color: colors.error }]}>
                 {stats.shallowReps}
               </Text>
               <Text style={styles.breakdownLabel}>Shallow</Text>
             </View>
             <View style={styles.breakdownItem}>
-              <Text style={[styles.breakdownValue, { color: '#F59E0B' }]}>
+              <Text style={[styles.breakdownValue, { color: colors.warning }]}>
                 {stats.fastReps}
               </Text>
               <Text style={styles.breakdownLabel}>Too Fast</Text>
             </View>
             <View style={styles.breakdownItem}>
-              <Text style={[styles.breakdownValue, { color: '#A855F7' }]}>
+              <Text style={[styles.breakdownValue, { color: colors.warning }]}>
                 {stats.wobbleReps}
               </Text>
               <Text style={styles.breakdownLabel}>Wobble</Text>
             </View>
           </View>
-        </View>
+        </SectionCard>
 
         <View style={styles.actionRow}>
           {!isActive ? (
-            <TouchableOpacity
+            <PrimaryButton
               style={styles.startBtn}
               onPress={handleStartCountdown}
               disabled={countdown !== null}
-            >
-              <Play color="#FFFFFF" size={20} fill="#FFFFFF" />
-              <Text style={styles.btnText}>
-                {countdown !== null ? `STARTING IN ${countdown}...` : 'START COACH'}
-              </Text>
-            </TouchableOpacity>
+              icon={<Play color={colors.text} size={sizes.icon} fill={colors.text} />}
+              label={countdown !== null ? `STARTING IN ${countdown}...` : 'START COACH'}
+            />
           ) : (
-            <TouchableOpacity style={styles.stopBtn} onPress={handleStop}>
-              <Square color="#FFFFFF" size={20} fill="#FFFFFF" />
-              <Text style={styles.btnText}>STOP / FINISH</Text>
-            </TouchableOpacity>
+            <SecondaryButton
+              style={styles.stopBtn}
+              onPress={handleStop}
+              icon={<Square color={colors.text} size={sizes.icon} fill={colors.text} />}
+              label="STOP / FINISH"
+            />
           )}
 
-          <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
-            <RotateCcw color="#94A3B8" size={20} />
-          </TouchableOpacity>
+          <SecondaryButton
+            onPress={handleReset}
+            icon={<RotateCcw color={colors.textSecondary} size={sizes.icon} />}
+            accessibilityLabel="Reset workout"
+          />
         </View>
       </ScrollView>
 
@@ -459,7 +470,7 @@ function SquatSenseMain() {
         onRequestClose={() => setShowSummary(false)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+          <SectionCard style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View style={styles.modalTitleRow}>
                 <Award color={performance.color} size={28} />
@@ -468,8 +479,10 @@ function SquatSenseMain() {
               <TouchableOpacity
                 onPress={() => setShowSummary(false)}
                 style={styles.closeBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close summary"
               >
-                <X color="#94A3B8" size={20} />
+                <X color={colors.textSecondary} size={20} />
               </TouchableOpacity>
             </View>
 
@@ -504,31 +517,29 @@ function SquatSenseMain() {
               </Text>
               <View style={styles.diagnosticRow}>
                 <Text style={styles.diagnosticKey}>Shallow Depth (No rep):</Text>
-                <Text style={[styles.diagnosticVal, { color: '#EF4444' }]}>
+                <Text style={[styles.diagnosticVal, { color: colors.error }]}>
                   {stats.shallowReps}
                 </Text>
               </View>
               <View style={styles.diagnosticRow}>
                 <Text style={styles.diagnosticKey}>Descending Too Fast:</Text>
-                <Text style={[styles.diagnosticVal, { color: '#F59E0B' }]}>
+                <Text style={[styles.diagnosticVal, { color: colors.warning }]}>
                   {stats.fastReps}
                 </Text>
               </View>
               <View style={styles.diagnosticRow}>
                 <Text style={styles.diagnosticKey}>Knee Wobble / Imbalance:</Text>
-                <Text style={[styles.diagnosticVal, { color: '#A855F7' }]}>
+                <Text style={[styles.diagnosticVal, { color: colors.warning }]}>
                   {stats.wobbleReps}
                 </Text>
               </View>
             </View>
 
-            <TouchableOpacity
-              style={styles.modalDoneBtn}
+            <PrimaryButton
               onPress={() => setShowSummary(false)}
-            >
-              <Text style={styles.modalDoneBtnText}>CLOSE SUMMARY</Text>
-            </TouchableOpacity>
-          </View>
+              label="CLOSE SUMMARY"
+            />
+          </SectionCard>
         </View>
       </Modal>
     </SafeAreaView>
@@ -538,187 +549,126 @@ function SquatSenseMain() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0B0F19',
+    backgroundColor: colors.background,
   },
   container: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 40,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.screenBottom,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#F8FAFC',
-    letterSpacing: 0.5,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: '#64748B',
-    marginTop: 2,
-    fontWeight: '500',
+    marginBottom: spacing.lg,
   },
   difficultyContainer: {
-    backgroundColor: '#131B2E',
-    borderRadius: 18,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    marginBottom: 16,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
   },
   difficultyLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginBottom: 10,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   difficultyLabel: {
-    color: '#64748B',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
+    color: colors.textSecondary,
+    fontSize: typography.fontSize.caption,
+    fontWeight: typography.weight.bold,
+    letterSpacing: typography.letterSpacing.label,
   },
   difficultyButtonGroup: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   difficultyBtn: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#0B0F19',
+    minHeight: sizes.touchTarget,
+    paddingVertical: spacing.md,
+    borderRadius: radius.sm,
+    backgroundColor: colors.background,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: colors.surface,
   },
   difficultyBtnActive: {
-    backgroundColor: '#0284C7',
-    borderColor: '#38BDF8',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   difficultyBtnText: {
-    color: '#64748B',
-    fontSize: 12,
-    fontWeight: '700',
+    color: colors.textSecondary,
+    fontSize: typography.fontSize.caption,
+    fontWeight: typography.weight.bold,
   },
   difficultyBtnTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '800',
+    color: colors.text,
+    fontWeight: typography.weight.bold,
   },
   gaugeCard: {
-    backgroundColor: '#131B2E',
-    borderRadius: 24,
-    padding: 24,
+    padding: spacing.xxl,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   gaugeLabel: {
-    color: '#64748B',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1.2,
+    color: colors.textSecondary,
+    fontSize: typography.fontSize.caption,
+    fontWeight: typography.weight.bold,
+    letterSpacing: typography.letterSpacing.wide,
   },
   angleDisplay: {
     alignItems: 'center',
-    marginVertical: 12,
+    marginVertical: spacing.md,
   },
   angleValue: {
-    fontSize: 58,
-    fontWeight: '900',
-    color: '#F8FAFC',
+    fontSize: typography.fontSize.display,
+    fontWeight: typography.weight.bold,
+    color: colors.text,
   },
   angleTarget: {
-    fontSize: 14,
-    color: '#10B981',
-    fontWeight: '600',
-    marginTop: -4,
+    fontSize: typography.fontSize.small,
+    color: colors.textSecondary,
+    fontWeight: typography.weight.semibold,
+    marginTop: -spacing.xs,
   },
   barTrack: {
     width: '100%',
     height: 12,
-    backgroundColor: '#1E293B',
-    borderRadius: 6,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xs,
     overflow: 'hidden',
-    marginVertical: 14,
+    marginVertical: spacing.lg,
   },
   barFill: {
     height: '100%',
-    borderRadius: 6,
+    borderRadius: radius.xs,
   },
   statusBadge: {
-    backgroundColor: '#1E293B',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginBottom: 10,
-  },
-  statusBadgeText: {
-    color: '#38BDF8',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
+    marginBottom: spacing.md,
   },
   feedbackText: {
-    color: '#E2E8F0',
-    fontSize: 16,
-    fontWeight: '600',
+    color: colors.text,
+    fontSize: typography.fontSize.body,
+    fontWeight: typography.weight.semibold,
     textAlign: 'center',
   },
   counterGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
   counterCard: {
     flex: 1,
-    backgroundColor: '#131B2E',
-    borderRadius: 20,
-    padding: 18,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#1E293B',
-  },
-  mainCounter: {
-    borderColor: 'rgba(245, 158, 11, 0.3)',
-  },
-  counterNumber: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#F8FAFC',
-    marginVertical: 4,
-  },
-  counterTitle: {
-    color: '#64748B',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
   },
   breakdownCard: {
-    backgroundColor: '#131B2E',
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   breakdownTitle: {
-    color: '#64748B',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
-    marginBottom: 12,
+    color: colors.textSecondary,
+    fontSize: typography.fontSize.caption,
+    fontWeight: typography.weight.bold,
+    letterSpacing: typography.letterSpacing.label,
+    marginBottom: spacing.md,
     textAlign: 'center',
   },
   breakdownRow: {
@@ -729,196 +679,159 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   breakdownValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#F8FAFC',
+    fontSize: typography.fontSize.heading,
+    fontWeight: typography.weight.bold,
+    color: colors.text,
   },
   breakdownLabel: {
-    color: '#64748B',
-    fontSize: 12,
-    marginTop: 2,
+    color: colors.textSecondary,
+    fontSize: typography.fontSize.caption,
+    marginTop: spacing.xxs,
   },
   actionRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
     alignItems: 'center',
   },
   startBtn: {
     flex: 1,
-    backgroundColor: '#0284C7',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    borderRadius: 18,
-    gap: 10,
   },
   stopBtn: {
     flex: 1,
-    backgroundColor: '#DC2626',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    borderRadius: 18,
-    gap: 10,
-  },
-  resetBtn: {
-    backgroundColor: '#1E293B',
-    padding: 18,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  btnText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.8,
   },
   countdownOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(11, 15, 25, 0.95)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 999,
   },
   countdownSub: {
-    color: '#64748B',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 3,
-    marginBottom: 8,
+    color: colors.textSecondary,
+    fontSize: typography.fontSize.body,
+    fontWeight: typography.weight.bold,
+    letterSpacing: typography.letterSpacing.countdown,
+    marginBottom: spacing.sm,
   },
   countdownNum: {
-    color: '#38BDF8',
-    fontSize: 110,
-    fontWeight: '900',
+    color: colors.primary,
+    fontSize: typography.fontSize.countdown,
+    fontWeight: typography.weight.bold,
   },
   countdownDesc: {
-    color: '#94A3B8',
-    fontSize: 14,
-    marginTop: 16,
-    fontWeight: '600',
+    color: colors.textSecondary,
+    fontSize: typography.fontSize.small,
+    marginTop: spacing.lg,
+    fontWeight: typography.weight.semibold,
     textAlign: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: spacing.screenBottom,
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: colors.backdrop,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: spacing.xl,
   },
   modalCard: {
     width: '100%',
-    backgroundColor: '#131B2E',
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#1E293B',
+    padding: spacing.xxl,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   modalTitleRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.md,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#F8FAFC',
+    flexShrink: 1,
+    fontSize: typography.fontSize.heading,
+    fontWeight: typography.weight.bold,
+    color: colors.text,
   },
   closeBtn: {
-    padding: 4,
+    minWidth: sizes.touchTarget,
+    minHeight: sizes.touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xs,
   },
   gradeContainer: {
-    backgroundColor: '#0B0F19',
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    padding: spacing.lg,
     alignItems: 'center',
     borderWidth: 1.5,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   gradeText: {
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: 1,
+    fontSize: typography.fontSize.title,
+    fontWeight: typography.weight.bold,
+    letterSpacing: typography.letterSpacing.label,
   },
   gradeSub: {
-    color: '#94A3B8',
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 4,
+    color: colors.textSecondary,
+    fontSize: typography.fontSize.small,
+    fontWeight: typography.weight.semibold,
+    marginTop: spacing.xs,
   },
   modalStatsGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
   modalStatBox: {
     flex: 1,
-    backgroundColor: '#0B0F19',
-    borderRadius: 14,
-    padding: 12,
+    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    padding: spacing.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: colors.surface,
   },
   modalStatNumber: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#F8FAFC',
+    fontSize: typography.fontSize.heading,
+    fontWeight: typography.weight.bold,
+    color: colors.text,
   },
   modalStatTitle: {
-    color: '#64748B',
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
+    color: colors.textSecondary,
+    fontSize: typography.fontSize.caption,
+    fontWeight: typography.weight.semibold,
+    marginTop: spacing.xxs,
   },
   modalDiagnosticCard: {
-    backgroundColor: '#0B0F19',
-    borderRadius: 14,
-    padding: 14,
+    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    padding: spacing.lg,
     borderWidth: 1,
-    borderColor: '#1E293B',
-    marginBottom: 20,
-    gap: 8,
+    borderColor: colors.surface,
+    marginBottom: spacing.xl,
+    gap: spacing.sm,
   },
   modalDiagnosticHeader: {
-    color: '#64748B',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    marginBottom: 4,
+    color: colors.textSecondary,
+    fontSize: typography.fontSize.caption,
+    fontWeight: typography.weight.bold,
+    letterSpacing: typography.letterSpacing.label,
+    marginBottom: spacing.xs,
   },
   diagnosticRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   diagnosticKey: {
-    color: '#94A3B8',
-    fontSize: 13,
+    color: colors.textSecondary,
+    fontSize: typography.fontSize.small,
   },
   diagnosticVal: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  modalDoneBtn: {
-    backgroundColor: '#0284C7',
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-  },
-  modalDoneBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 0.8,
+    fontSize: typography.fontSize.small,
+    fontWeight: typography.weight.bold,
   },
 });
