@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Alert,
+  Animated,
   AppState,
   BackHandler,
+  Easing,
   StyleSheet,
   View,
   TouchableOpacity,
@@ -14,6 +16,7 @@ import { Accelerometer, Gyroscope } from 'expo-sensors';
 import * as Speech from 'expo-speech';
 import * as Haptics from 'expo-haptics';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import Svg, { Circle } from 'react-native-svg';
 import {
   Play,
   Pause,
@@ -48,6 +51,7 @@ type Difficulty = 'BEGINNER' | 'PRO';
 type Screen = 'HOME' | 'CALIBRATION' | 'WORKOUT' | 'SUMMARY';
 type RepResult = 'good' | 'shallow' | 'fast' | 'wobble';
 type SensorStatus = 'CHECKING' | 'READY' | 'UNAVAILABLE';
+type Lang = 'th' | 'en';
 
 interface WorkoutStats {
   totalReps: number;
@@ -85,11 +89,174 @@ const TONE_COLOR: Record<StatusTone, string> = {
   error: colors.error,
 };
 
-const STATE_LABEL: Record<RepState, string> = {
-  STANDING: 'STANDING',
-  DESCENDING: 'DESCENDING',
-  BOTTOM: 'BOTTOM POSITION',
-  ASCENDING: 'ASCENDING',
+// ---------------------------------------------------------------------
+// Localization (UI only). The detector keeps producing its original English
+// feedback/speech keys; they are translated at display / speech time.
+// ---------------------------------------------------------------------
+const STR = {
+  en: {
+    subtitle: 'Biomechanics Motion Coach',
+    sensorsReady: '● SENSORS READY',
+    sensorUnavailable: '● SENSOR UNAVAILABLE',
+    checkingSensors: 'CHECKING SENSORS…',
+    depthDifficulty: 'DEPTH DIFFICULTY',
+    BEGINNER: 'BEGINNER',
+    PRO: 'PRO',
+    diffDetail: (deg: number) => `Thigh ≤ ${deg}° from horizontal`,
+    lastSession: 'LAST SESSION',
+    validRepsShort: 'Valid reps',
+    accuracyShort: 'Accuracy',
+    duration: 'Duration',
+    howItWorks: 'HOW IT WORKS',
+    how1: 'Put your phone in your front trouser pocket, screen facing out.',
+    how2: 'Stand upright and stay still for the countdown.',
+    how3: 'Squat. Listen and feel for feedback — no need to look at the screen.',
+    startCoach: 'START COACH',
+    unavailableNote: 'This device does not report an accelerometer and gyroscope.',
+    getIntoPosition: 'Get into position',
+    frontPocket: 'Front trouser pocket',
+    pocketDetail: 'Screen facing out · top of the phone pointing toward your hip',
+    step1: 'Place the phone in your front trouser pocket as shown above.',
+    step2: 'Stand upright with your feet shoulder-width apart.',
+    step3: 'Tap the button, then stay still during the 3-second countdown.',
+    targetLine: (d: string, deg: number) => `${d} · depth target: thigh ≤ ${deg}° from horizontal`,
+    imReady: "I'M READY",
+    live: 'LIVE',
+    paused: 'PAUSED',
+    validReps: 'VALID REPS',
+    STANDING: 'STANDING',
+    DESCENDING: 'DESCENDING',
+    BOTTOM: 'BOTTOM POSITION',
+    ASCENDING: 'ASCENDING',
+    angleLine: (a: string, deg: number) => `Thigh angle ${a} · target ≤ ${deg}°`,
+    attemptsHint: 'Each attempt will appear here',
+    pause: 'PAUSE',
+    resume: 'RESUME',
+    end: 'END',
+    endTitle: 'End workout?',
+    endMsg: 'Your results will be shown on the summary screen.',
+    keepGoing: 'Keep going',
+    endWorkout: 'End workout',
+    workoutComplete: 'Workout complete',
+    formAccuracy: 'FORM ACCURACY',
+    validOf: (g: number, t: number) => `${g} of ${t} recorded attempts were valid`,
+    gridValid: 'Valid reps',
+    gridIncorrect: 'Incorrect',
+    gridTotal: 'Total attempts',
+    formAnalysis: 'FORM ANALYSIS',
+    errShallow: 'Too shallow',
+    errFast: 'Too fast',
+    errWobble: 'Unstable (wobble)',
+    mostCommon: '  · most common',
+    nextTime: 'NEXT TIME',
+    tipNone:
+      'No attempts were detected. Check that the phone is in your front pocket, screen out, and squat until your thigh is close to horizontal.',
+    tipShallow: 'Squat deeper — bring your thigh closer to horizontal before standing up.',
+    tipFast: 'Lower yourself more slowly and with control instead of dropping into the squat.',
+    tipWobble: 'Keep the movement steady — the phone detected a lot of rotation during some reps.',
+    tipPerfect: 'Every recorded attempt met the depth target with controlled speed. Keep it up!',
+    home: 'HOME',
+    tryAgain: 'TRY AGAIN',
+    getReady: 'GET READY',
+    standStill: 'Stand upright and stay still',
+    cancel: 'CANCEL',
+  },
+  th: {
+    subtitle: 'โค้ชท่าสควอตอัจฉริยะ',
+    sensorsReady: '● เซนเซอร์พร้อมใช้งาน',
+    sensorUnavailable: '● ไม่พบเซนเซอร์',
+    checkingSensors: 'กำลังตรวจสอบเซนเซอร์…',
+    depthDifficulty: 'ระดับความลึก',
+    BEGINNER: 'มือใหม่',
+    PRO: 'โปร',
+    diffDetail: (deg: number) => `ต้นขาเอียง ≤ ${deg}° จากแนวราบ`,
+    lastSession: 'ครั้งล่าสุด',
+    validRepsShort: 'ครั้งที่ถูกต้อง',
+    accuracyShort: 'ความแม่นยำ',
+    duration: 'เวลา',
+    howItWorks: 'วิธีใช้งาน',
+    how1: 'ใส่โทรศัพท์ในกระเป๋ากางเกงด้านหน้า หันหน้าจอออก',
+    how2: 'ยืนตรงและอยู่นิ่ง ๆ ระหว่างนับถอยหลัง',
+    how3: 'เริ่มสควอต ฟังเสียงและรับรู้การสั่นได้เลย ไม่ต้องมองจอ',
+    startCoach: 'เริ่มฝึก',
+    unavailableNote: 'อุปกรณ์นี้ไม่มีเซนเซอร์วัดความเร่งหรือไจโรสโคป',
+    getIntoPosition: 'เตรียมพร้อม',
+    frontPocket: 'กระเป๋ากางเกงด้านหน้า',
+    pocketDetail: 'หันหน้าจอออก · หัวโทรศัพท์ชี้ขึ้นไปทางสะโพก',
+    step1: 'ใส่โทรศัพท์ในกระเป๋ากางเกงด้านหน้าตามภาพด้านบน',
+    step2: 'ยืนตรง แยกเท้ากว้างประมาณช่วงไหล่',
+    step3: 'กดปุ่มด้านล่าง แล้วยืนนิ่งระหว่างนับถอยหลัง 3 วินาที',
+    targetLine: (d: string, deg: number) => `${d} · เป้าหมาย: ต้นขาเอียง ≤ ${deg}° จากแนวราบ`,
+    imReady: 'พร้อมแล้ว',
+    live: 'กำลังฝึก',
+    paused: 'หยุดชั่วคราว',
+    validReps: 'ครั้งที่ถูกต้อง',
+    STANDING: 'ยืนตรง',
+    DESCENDING: 'กำลังย่อลง',
+    BOTTOM: 'ถึงจุดต่ำสุด',
+    ASCENDING: 'กำลังลุกขึ้น',
+    angleLine: (a: string, deg: number) => `มุมต้นขา ${a} · เป้าหมาย ≤ ${deg}°`,
+    attemptsHint: 'ผลของแต่ละครั้งจะแสดงที่นี่',
+    pause: 'พัก',
+    resume: 'ทำต่อ',
+    end: 'จบ',
+    endTitle: 'จบการฝึกไหม?',
+    endMsg: 'ผลการฝึกจะแสดงในหน้าสรุป',
+    keepGoing: 'ฝึกต่อ',
+    endWorkout: 'จบการฝึก',
+    workoutComplete: 'ฝึกเสร็จแล้ว!',
+    formAccuracy: 'ความแม่นยำของท่า',
+    validOf: (g: number, t: number) => `ถูกต้อง ${g} จาก ${t} ครั้ง`,
+    gridValid: 'ถูกต้อง',
+    gridIncorrect: 'ไม่ถูกต้อง',
+    gridTotal: 'ทั้งหมด',
+    formAnalysis: 'วิเคราะห์ท่าทาง',
+    errShallow: 'ย่อไม่ลึกพอ',
+    errFast: 'เร็วเกินไป',
+    errWobble: 'ไม่มั่นคง (โยก)',
+    mostCommon: '  · พบบ่อยที่สุด',
+    nextTime: 'ครั้งหน้าลองแบบนี้',
+    tipNone:
+      'ไม่พบการสควอต ตรวจสอบว่าใส่โทรศัพท์ในกระเป๋ากางเกงด้านหน้า หันจอออก และย่อตัวจนต้นขาเกือบขนานพื้น',
+    tipShallow: 'ย่อให้ลึกขึ้น ให้ต้นขาเกือบขนานพื้นก่อนลุกขึ้น',
+    tipFast: 'ย่อตัวลงช้า ๆ อย่างควบคุม อย่าทิ้งตัวลงเร็ว',
+    tipWobble: 'ทรงตัวให้นิ่ง ระบบตรวจพบการโยกของโทรศัพท์ในบางครั้ง',
+    tipPerfect: 'ทุกครั้งลึกถึงเป้าหมายและควบคุมความเร็วได้ดี เยี่ยมมาก!',
+    home: 'หน้าหลัก',
+    tryAgain: 'ฝึกอีกครั้ง',
+    getReady: 'เตรียมตัว',
+    standStill: 'ยืนตรงและอยู่นิ่ง ๆ',
+    cancel: 'ยกเลิก',
+  },
+};
+
+type Strings = (typeof STR)['en'];
+
+// Detector / flow feedback keys (English) → Thai display text
+const FEEDBACK_TH: Record<string, string> = {
+  'Ready to start': 'พร้อมเริ่ม',
+  'Stand upright and begin': 'ยืนตรง แล้วเริ่มสควอตได้เลย',
+  'Workout paused': 'หยุดชั่วคราว',
+  'Workout finished': 'จบการฝึก',
+  'Paused — app left the foreground': 'หยุดชั่วคราว เพราะออกจากแอป',
+  'Going down...': 'กำลังย่อลง...',
+  'Good depth! Push up': 'ลึกพอแล้ว! ดันตัวขึ้น',
+  'Too shallow!': 'ย่อไม่ลึกพอ!',
+  'Driving up...': 'กำลังลุกขึ้น...',
+  'Control your speed': 'ช้าลงอีกนิด',
+  'Keep knees stable': 'ทรงตัวให้นิ่ง',
+  'Perfect rep!': 'เยี่ยม! ท่าถูกต้อง',
+};
+
+// Spoken cues (English keys used by the detector) → Thai speech. Numbers are read by Thai TTS directly.
+const SPEECH_TH: Record<string, string> = {
+  Three: 'สาม',
+  Two: 'สอง',
+  One: 'หนึ่ง',
+  'Start workout': 'เริ่มได้เลย',
+  'Too shallow': 'ย่อให้ลึกกว่านี้',
+  'Too fast': 'ช้าลงหน่อย',
+  'Knee wobble': 'ทรงตัวให้นิ่ง',
 };
 
 const workoutTone = (lastResult: RepResult | null, repState: RepState): StatusTone =>
@@ -127,6 +294,7 @@ function SquatSenseMain() {
 
   // UI-only state (does not affect detection)
   const [muted, setMuted] = useState<boolean>(false);
+  const [lang, setLang] = useState<Lang>('th');
   const [sensorStatus, setSensorStatus] = useState<SensorStatus>('CHECKING');
   const [repResults, setRepResults] = useState<RepResult[]>([]);
   const [lastResult, setLastResult] = useState<RepResult | null>(null);
@@ -144,6 +312,8 @@ function SquatSenseMain() {
   const lastSpeakTimeRef = useRef<number>(0);
 
   const mutedRef = useRef<boolean>(false);
+  const langRef = useRef<Lang>('th');
+  const thaiVoiceRef = useRef<boolean>(false);
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevStatsRef = useRef<WorkoutStats>(EMPTY_STATS);
   const statsRef = useRef<WorkoutStats>(EMPTY_STATS);
@@ -151,14 +321,19 @@ function SquatSenseMain() {
   const accumulatedMsRef = useRef<number>(0);
 
   const targetAngle = difficulty === 'BEGINNER' ? 35 : 25;
+  const t: Strings = STR[lang];
+  const tf = (key: string) => (lang === 'th' ? (FEEDBACK_TH[key] ?? key) : key);
 
+  // Speak in Thai only when the device actually has a Thai voice; otherwise fall back to English.
   const speak = (text: string) => {
     if (mutedRef.current) return;
     const now = Date.now();
     if (now - lastSpeakTimeRef.current < 1100) return;
     lastSpeakTimeRef.current = now;
     Speech.stop();
-    Speech.speak(text, { language: 'en-US', rate: 1.0 });
+    const useThai = langRef.current === 'th' && thaiVoiceRef.current;
+    const spoken = useThai ? (SPEECH_TH[text] ?? text) : text;
+    Speech.speak(spoken, { language: useThai ? 'th-TH' : 'en-US', rate: 1.0 });
   };
 
   const toggleMute = () => {
@@ -167,6 +342,30 @@ function SquatSenseMain() {
     setMuted(next);
     if (next) Speech.stop();
   };
+
+  const toggleLang = () => {
+    const next: Lang = langRef.current === 'th' ? 'en' : 'th';
+    langRef.current = next;
+    setLang(next);
+  };
+
+  // ---- Thai voice availability (retry once: Android TTS can report voices late) ----
+  useEffect(() => {
+    let cancelled = false;
+    const check = () =>
+      Speech.getAvailableVoicesAsync()
+        .then((voices) => {
+          if (cancelled) return;
+          thaiVoiceRef.current = voices.some((v) => (v.language ?? '').toLowerCase().startsWith('th'));
+        })
+        .catch(() => {});
+    check();
+    const retry = setTimeout(check, 2000);
+    return () => {
+      cancelled = true;
+      clearTimeout(retry);
+    };
+  }, []);
 
   // ---- Sensor availability (real check, no fake status) ----
   useEffect(() => {
@@ -203,11 +402,11 @@ function SquatSenseMain() {
 
   useEffect(() => {
     if (!isActive) return;
-    const t = setInterval(() => {
+    const timer = setInterval(() => {
       const running = activeSinceRef.current !== null ? Date.now() - activeSinceRef.current : 0;
       setElapsedMs(accumulatedMsRef.current + running);
     }, 500);
-    return () => clearInterval(t);
+    return () => clearInterval(timer);
   }, [isActive]);
 
   const startWorkout = async () => {
@@ -297,9 +496,9 @@ function SquatSenseMain() {
   };
 
   const confirmFinish = () => {
-    Alert.alert('End workout?', 'Your results will be shown on the summary screen.', [
-      { text: 'Keep going', style: 'cancel' },
-      { text: 'End workout', style: 'destructive', onPress: finishWorkout },
+    Alert.alert(t.endTitle, t.endMsg, [
+      { text: t.keepGoing, style: 'cancel' },
+      { text: t.endWorkout, style: 'destructive', onPress: finishWorkout },
     ]);
   };
 
@@ -487,45 +686,54 @@ function SquatSenseMain() {
   }, [isActive]);
   // ================ END EXISTING DETECTOR ================
 
-  const muteButton = (
-    <TouchableOpacity
-      onPress={toggleMute}
-      style={styles.iconButton}
-      accessibilityRole="button"
-      accessibilityLabel={muted ? 'Turn voice coaching on' : 'Turn voice coaching off'}
-    >
-      {muted ? (
-        <VolumeX color={colors.textSecondary} size={sizes.icon} />
-      ) : (
-        <Volume2 color={colors.text} size={sizes.icon} />
-      )}
-    </TouchableOpacity>
+  const headerActions = (
+    <View style={styles.headerActions}>
+      <TouchableOpacity
+        onPress={toggleLang}
+        style={styles.iconButton}
+        accessibilityRole="button"
+        accessibilityLabel={lang === 'th' ? 'Switch to English' : 'เปลี่ยนเป็นภาษาไทย'}
+      >
+        <Text variant="caption" weight="bold" language="en">{lang === 'th' ? 'EN' : 'TH'}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={toggleMute}
+        style={styles.iconButton}
+        accessibilityRole="button"
+        accessibilityLabel={muted ? 'Turn voice coaching on' : 'Turn voice coaching off'}
+      >
+        {muted ? (
+          <VolumeX color={colors.textSecondary} size={sizes.icon} />
+        ) : (
+          <Volume2 color={colors.text} size={sizes.icon} />
+        )}
+      </TouchableOpacity>
+    </View>
   );
+
+  const tone = workoutTone(lastResult, repState);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-      <GlowBackground
-        tint={
-          screen === 'WORKOUT' && isActive && workoutTone(lastResult, repState) !== 'neutral'
-            ? TONE_COLOR[workoutTone(lastResult, repState)]
-            : null
-        }
-      />
+      <GlowBackground tint={screen === 'WORKOUT' && isActive && tone !== 'neutral' ? TONE_COLOR[tone] : null} />
 
       {screen === 'HOME' && (
         <HomeScreen
+          t={t}
+          thai={lang === 'th'}
           difficulty={difficulty}
           onDifficulty={handleDifficultyChange}
           sensorStatus={sensorStatus}
           lastSession={lastSession}
           onStart={goToCalibration}
-          headerAction={muteButton}
+          headerAction={headerActions}
         />
       )}
 
       {screen === 'CALIBRATION' && (
         <CalibrationScreen
+          t={t}
           difficulty={difficulty}
           targetAngle={targetAngle}
           onBack={goHome}
@@ -536,26 +744,29 @@ function SquatSenseMain() {
 
       {screen === 'WORKOUT' && (
         <WorkoutScreen
+          t={t}
+          thai={lang === 'th'}
           stats={stats}
           angle={currentAngle}
           targetAngle={targetAngle}
           repState={repState}
-          feedback={feedback}
-          lastResult={lastResult}
+          feedback={tf(interrupted ? 'Paused — app left the foreground' : feedback)}
+          tone={tone}
           repResults={repResults}
           isActive={isActive}
           hasStarted={hasStarted}
-          interrupted={interrupted}
           elapsedMs={elapsedMs}
           onPause={() => pauseWorkout()}
           onResume={resumeWorkout}
           onFinish={confirmFinish}
-          headerAction={muteButton}
+          headerAction={headerActions}
         />
       )}
 
       {screen === 'SUMMARY' && lastSession && (
         <SummaryScreen
+          t={t}
+          thai={lang === 'th'}
           session={lastSession}
           repResults={repResults}
           onTryAgain={goToCalibration}
@@ -565,10 +776,10 @@ function SquatSenseMain() {
 
       {countdown !== null && (
         <View style={styles.countdownOverlay}>
-          <Text style={styles.countdownSub}>GET READY</Text>
+          <Text style={[styles.countdownSub, lang === 'th' && styles.noTracking]}>{t.getReady}</Text>
           <Text style={styles.countdownNum}>{countdown}</Text>
-          <Text style={styles.countdownDesc}>Stand upright and stay still</Text>
-          <SecondaryButton label="CANCEL" onPress={cancelCountdown} style={styles.countdownCancel} />
+          <Text style={styles.countdownDesc}>{t.standStill}</Text>
+          <SecondaryButton label={t.cancel} onPress={cancelCountdown} style={styles.countdownCancel} />
         </View>
       )}
     </SafeAreaView>
@@ -579,6 +790,8 @@ function SquatSenseMain() {
 // HOME
 // =====================================================================
 function HomeScreen({
+  t,
+  thai,
   difficulty,
   onDifficulty,
   sensorStatus,
@@ -586,6 +799,8 @@ function HomeScreen({
   onStart,
   headerAction,
 }: {
+  t: Strings;
+  thai: boolean;
   difficulty: Difficulty;
   onDifficulty: (d: Difficulty) => void;
   sensorStatus: SensorStatus;
@@ -595,19 +810,20 @@ function HomeScreen({
 }) {
   const sensorChip =
     sensorStatus === 'READY'
-      ? { label: '● SENSORS READY', tone: 'success' as StatusTone }
+      ? { label: t.sensorsReady, tone: 'success' as StatusTone }
       : sensorStatus === 'UNAVAILABLE'
-        ? { label: '● SENSOR UNAVAILABLE', tone: 'error' as StatusTone }
-        : { label: 'CHECKING SENSORS…', tone: 'neutral' as StatusTone };
+        ? { label: t.sensorUnavailable, tone: 'error' as StatusTone }
+        : { label: t.checkingSensors, tone: 'neutral' as StatusTone };
 
   const lastAccuracy = lastSession ? calcAccuracy(lastSession.stats) : null;
+  const track = thai ? styles.noTracking : null;
 
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <AppHeader
           title="SquatSense"
-          subtitle="Biomechanics Motion Coach"
+          subtitle={t.subtitle}
           icon={<Activity color={colors.primary} size={sizes.headerIcon} />}
           settingsAction={headerAction}
           style={styles.header}
@@ -615,52 +831,50 @@ function HomeScreen({
 
         <StatusChip label={sensorChip.label} tone={sensorChip.tone} style={styles.sensorChip} />
 
-        <Text style={styles.sectionLabel}>DEPTH DIFFICULTY</Text>
+        <Text style={[styles.sectionLabel, track]}>{t.depthDifficulty}</Text>
         <View style={styles.difficultyRow}>
           <DifficultyOption
-            title="BEGINNER"
-            detail="Thigh ≤ 35° from horizontal"
+            title={t.BEGINNER}
+            detail={t.diffDetail(35)}
             selected={difficulty === 'BEGINNER'}
             onPress={() => onDifficulty('BEGINNER')}
+            thai={thai}
           />
           <DifficultyOption
-            title="PRO"
-            detail="Thigh ≤ 25° from horizontal"
+            title={t.PRO}
+            detail={t.diffDetail(25)}
             selected={difficulty === 'PRO'}
             onPress={() => onDifficulty('PRO')}
+            thai={thai}
           />
         </View>
 
         {lastSession ? (
-          <SectionCard title="LAST SESSION" style={styles.homeCard}>
+          <SectionCard title={t.lastSession} style={styles.homeCard}>
             <View style={styles.lastRow}>
-              <MiniStat value={String(lastSession.stats.goodReps)} label="Valid reps" />
-              <MiniStat value={lastAccuracy === null ? '--' : `${lastAccuracy}%`} label="Accuracy" />
-              <MiniStat value={formatDuration(lastSession.durationMs)} label="Duration" />
+              <MiniStat value={String(lastSession.stats.goodReps)} label={t.validRepsShort} />
+              <MiniStat value={lastAccuracy === null ? '--' : `${lastAccuracy}%`} label={t.accuracyShort} />
+              <MiniStat value={formatDuration(lastSession.durationMs)} label={t.duration} />
             </View>
           </SectionCard>
         ) : (
-          <SectionCard title="HOW IT WORKS" style={styles.homeCard}>
-            <HowStep icon={<Smartphone color={colors.primary} size={20} />} text="Put your phone in your front trouser pocket, screen facing out." />
-            <HowStep icon={<PersonStanding color={colors.primary} size={20} />} text="Stand upright and stay still for the countdown." />
-            <HowStep icon={<ChevronsDown color={colors.primary} size={20} />} text="Squat. Listen and feel for feedback — no need to look at the screen." />
+          <SectionCard title={t.howItWorks} style={styles.homeCard}>
+            <HowStep icon={<Smartphone color={colors.primary} size={20} />} text={t.how1} />
+            <HowStep icon={<PersonStanding color={colors.primary} size={20} />} text={t.how2} />
+            <HowStep icon={<ChevronsDown color={colors.primary} size={20} />} text={t.how3} />
           </SectionCard>
         )}
       </ScrollView>
 
       <View style={styles.bottomBar}>
         <PrimaryButton
-          label="START COACH"
+          label={t.startCoach}
           icon={<Play color={colors.text} size={sizes.icon} fill={colors.text} />}
           onPress={onStart}
           disabled={sensorStatus === 'UNAVAILABLE'}
           style={styles.bigButton}
         />
-        {sensorStatus === 'UNAVAILABLE' && (
-          <Text style={styles.unavailableNote}>
-            This device does not report an accelerometer and gyroscope.
-          </Text>
-        )}
+        {sensorStatus === 'UNAVAILABLE' && <Text style={styles.unavailableNote}>{t.unavailableNote}</Text>}
       </View>
     </View>
   );
@@ -671,11 +885,13 @@ function DifficultyOption({
   detail,
   selected,
   onPress,
+  thai,
 }: {
   title: string;
   detail: string;
   selected: boolean;
   onPress: () => void;
+  thai: boolean;
 }) {
   return (
     <TouchableOpacity
@@ -687,7 +903,7 @@ function DifficultyOption({
       <View style={[styles.radio, selected && styles.radioActive]}>
         {selected && <View style={styles.radioDot} />}
       </View>
-      <Text weight="bold" style={styles.diffTitle}>{title}</Text>
+      <Text weight="bold" style={[styles.diffTitle, thai && styles.noTracking]}>{title}</Text>
       <Text variant="caption" style={styles.diffDetail}>{detail}</Text>
     </TouchableOpacity>
   );
@@ -715,12 +931,14 @@ function MiniStat({ value, label }: { value: string; label: string }) {
 // CALIBRATION / PREPARATION
 // =====================================================================
 function CalibrationScreen({
+  t,
   difficulty,
   targetAngle,
   onBack,
   onReady,
   counting,
 }: {
+  t: Strings;
   difficulty: Difficulty;
   targetAngle: number;
   onBack: () => void;
@@ -733,8 +951,8 @@ function CalibrationScreen({
         <TouchableOpacity onPress={onBack} style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Back to home">
           <ArrowLeft color={colors.text} size={sizes.icon} />
         </TouchableOpacity>
-        <Text weight="bold" style={styles.topBarTitle}>Get into position</Text>
-        <View style={styles.iconButton} />
+        <Text weight="bold" style={styles.topBarTitle}>{t.getIntoPosition}</Text>
+        <View style={styles.iconSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -742,33 +960,26 @@ function CalibrationScreen({
           <View style={styles.phoneCircle}>
             <Smartphone color={colors.primary} size={64} strokeWidth={1.5} />
           </View>
-          <Text variant="heading" weight="bold" style={styles.centerText}>Front trouser pocket</Text>
-          <Text variant="small" style={[styles.mutedText, styles.centerText]}>
-            Screen facing out · top of the phone pointing toward your hip
-          </Text>
+          <Text variant="heading" weight="bold" style={styles.centerText}>{t.frontPocket}</Text>
+          <Text variant="small" style={[styles.mutedText, styles.centerText]}>{t.pocketDetail}</Text>
         </View>
 
         <SectionCard style={styles.homeCard}>
-          <NumberedStep n={1} text="Place the phone in your front trouser pocket as shown above." />
-          <NumberedStep n={2} text="Stand upright with your feet shoulder-width apart." />
-          <NumberedStep n={3} text="Tap the button, then stay still during the 3-second countdown." />
+          <NumberedStep n={1} text={t.step1} />
+          <NumberedStep n={2} text={t.step2} />
+          <NumberedStep n={3} text={t.step3} />
         </SectionCard>
 
         <View style={styles.targetRow}>
           <Target color={colors.textSecondary} size={16} />
-          <Text variant="small" style={styles.mutedText}>
-            {difficulty} · depth target: thigh ≤ {targetAngle}° from horizontal
+          <Text variant="small" style={[styles.mutedText, styles.flexShrink]}>
+            {t.targetLine(t[difficulty], targetAngle)}
           </Text>
         </View>
       </ScrollView>
 
       <View style={styles.bottomBar}>
-        <PrimaryButton
-          label="I'M READY"
-          onPress={onReady}
-          disabled={counting}
-          style={styles.bigButton}
-        />
+        <PrimaryButton label={t.imReady} onPress={onReady} disabled={counting} style={styles.bigButton} />
       </View>
     </View>
   );
@@ -788,44 +999,109 @@ function NumberedStep({ n, text }: { n: number; text: string }) {
 // =====================================================================
 // WORKOUT
 // =====================================================================
+const RING_SIZE = 260;
+const RING_STROKE = 14;
+const RING_R = (RING_SIZE - RING_STROKE) / 2;
+const RING_C = 2 * Math.PI * RING_R;
+
+/** Depth ring: fills as the thigh approaches the target angle; full ring = target depth. */
+function DepthRing({ progress, reached, children }: { progress: number; reached: boolean; children: React.ReactNode }) {
+  const p = Math.min(1, Math.max(0, progress));
+  return (
+    <View style={styles.ringWrap}>
+      <View style={styles.ringSvg}>
+        <Svg width={RING_SIZE} height={RING_SIZE}>
+          <Circle
+            cx={RING_SIZE / 2}
+            cy={RING_SIZE / 2}
+            r={RING_R}
+            stroke={colors.glassStrong}
+            strokeWidth={RING_STROKE}
+            fill="none"
+          />
+          {p > 0 ? (
+            <Circle
+              cx={RING_SIZE / 2}
+              cy={RING_SIZE / 2}
+              r={RING_R}
+              stroke={reached ? colors.success : colors.primary}
+              strokeWidth={RING_STROKE}
+              strokeLinecap="round"
+              strokeDasharray={`${RING_C} ${RING_C}`}
+              strokeDashoffset={RING_C * (1 - p)}
+              fill="none"
+            />
+          ) : null}
+        </Svg>
+      </View>
+      <View style={styles.ringInner}>{children}</View>
+    </View>
+  );
+}
+
 function WorkoutScreen({
+  t,
+  thai,
   stats,
   angle,
   targetAngle,
   repState,
   feedback,
-  lastResult,
+  tone,
   repResults,
   isActive,
   hasStarted,
-  interrupted,
   elapsedMs,
   onPause,
   onResume,
   onFinish,
   headerAction,
 }: {
+  t: Strings;
+  thai: boolean;
   stats: WorkoutStats;
   angle: number;
   targetAngle: number;
   repState: RepState;
   feedback: string;
-  lastResult: RepResult | null;
+  tone: StatusTone;
   repResults: RepResult[];
   isActive: boolean;
   hasStarted: boolean;
-  interrupted: boolean;
   elapsedMs: number;
   onPause: () => void;
   onResume: () => void;
   onFinish: () => void;
   headerAction: React.ReactNode;
 }) {
-  const tone: StatusTone = workoutTone(lastResult, repState);
   const toneColor = isActive ? TONE_COLOR[tone] : colors.textSecondary;
+  const depthProgress = hasStarted ? (90 - angle) / (90 - targetAngle) : 0;
+  const reachedDepth = hasStarted && angle <= targetAngle;
 
-  const depthPct = Math.min(100, Math.max(0, ((90 - angle) / (90 - targetAngle)) * 100));
-  const reachedDepth = angle <= targetAngle;
+  // ---- Valid-rep celebration: bounce + green flash ----
+  const scale = useRef(new Animated.Value(1)).current;
+  const flash = useRef(new Animated.Value(0)).current;
+  const prevGood = useRef(stats.goodReps);
+
+  useEffect(() => {
+    if (stats.goodReps > prevGood.current) {
+      scale.setValue(1);
+      flash.setValue(0);
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(scale, { toValue: 1.22, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.spring(scale, { toValue: 1, friction: 4, tension: 120, useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.timing(flash, { toValue: 1, duration: 120, useNativeDriver: true }),
+          Animated.timing(flash, { toValue: 0, duration: 700, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        ]),
+      ]).start();
+    }
+    prevGood.current = stats.goodReps;
+  }, [stats.goodReps, scale, flash]);
+
+  const track = thai ? styles.noTracking : null;
 
   return (
     <View style={styles.screen}>
@@ -834,54 +1110,39 @@ function WorkoutScreen({
           <Clock color={colors.textSecondary} size={14} />
           <Text variant="small" weight="semibold" style={styles.tabular}>{formatDuration(elapsedMs)}</Text>
         </View>
-        <Text variant="caption" weight="bold" style={styles.mutedLabel}>
-          {isActive ? 'LIVE' : 'PAUSED'}
-        </Text>
+        <View style={styles.liveRow}>
+          {isActive ? <View style={styles.liveDot} /> : null}
+          <Text variant="caption" weight="bold" style={[styles.mutedLabel, track]}>
+            {isActive ? t.live : t.paused}
+          </Text>
+        </View>
         {headerAction}
       </View>
 
       <View style={styles.workoutBody}>
-        <View style={styles.repBlock}>
-          <Text style={[styles.repNumber, styles.repGlow]}>
-            {stats.goodReps}
-          </Text>
-          <Text variant="small" weight="bold" style={styles.mutedLabel}>VALID REPS</Text>
+        <View style={styles.ringArea}>
+          <Animated.View pointerEvents="none" style={[styles.flashGlow, { opacity: flash }]} />
+          <DepthRing progress={depthProgress} reached={reachedDepth}>
+            <Animated.View style={{ transform: [{ scale }], alignItems: 'center' }}>
+              <Text style={[styles.repNumber, styles.repGlow]}>{stats.goodReps}</Text>
+              <Text variant="caption" weight="bold" style={[styles.mutedLabel, track]}>{t.validReps}</Text>
+            </Animated.View>
+          </DepthRing>
         </View>
 
-        <StatusChip label={isActive ? STATE_LABEL[repState] : 'PAUSED'} tone={isActive ? tone : 'neutral'} />
+        <StatusChip label={isActive ? t[repState] : t.paused} tone={isActive ? tone : 'neutral'} />
 
-        <Text variant="heading" weight="bold" style={[styles.feedback, { color: isActive ? toneColor : colors.textSecondary }]}>
-          {interrupted ? 'Paused — app left the foreground' : feedback}
+        <Text variant="heading" weight="bold" style={[styles.feedback, { color: isActive ? (tone === 'neutral' ? colors.text : toneColor) : colors.textSecondary }]}>
+          {feedback}
         </Text>
 
-        <SectionCard style={styles.depthCard}>
-          <View style={styles.depthHeader}>
-            <Text variant="caption" weight="bold" style={styles.mutedLabel}>DEPTH</Text>
-            <Text variant="caption" style={styles.mutedText}>
-              Thigh angle {hasStarted ? `${angle}°` : '--'} · target ≤ {targetAngle}°
-            </Text>
-          </View>
-          <View style={styles.depthTrack}>
-            <View
-              style={[
-                styles.depthFill,
-                {
-                  width: `${hasStarted ? depthPct : 0}%`,
-                  backgroundColor: reachedDepth ? colors.success : colors.primary,
-                },
-              ]}
-            />
-            <View style={styles.depthTargetMarker} />
-          </View>
-          <View style={styles.depthLabels}>
-            <Text variant="caption" style={styles.mutedText}>Standing</Text>
-            <Text variant="caption" style={{ color: colors.success }}>Target</Text>
-          </View>
-        </SectionCard>
+        <Text variant="caption" style={[styles.mutedText, styles.centerText]}>
+          {t.angleLine(hasStarted ? `${angle}°` : '--', targetAngle)}
+        </Text>
 
         <View style={styles.dotsRow} accessibilityLabel={`${repResults.length} attempts recorded`}>
           {repResults.length === 0 ? (
-            <Text variant="caption" style={styles.mutedText}>Each attempt will appear here</Text>
+            <Text variant="caption" style={styles.mutedText}>{t.attemptsHint}</Text>
           ) : (
             repResults.map((r, i) => (
               <View key={i} style={[styles.dot, { backgroundColor: TONE_COLOR[RESULT_TONE[r]] }]} />
@@ -893,21 +1154,21 @@ function WorkoutScreen({
       <View style={[styles.bottomBar, styles.workoutActions]}>
         {isActive ? (
           <SecondaryButton
-            label="PAUSE"
+            label={t.pause}
             icon={<Pause color={colors.text} size={sizes.icon} />}
             onPress={onPause}
             style={styles.flex1}
           />
         ) : (
           <PrimaryButton
-            label="RESUME"
+            label={t.resume}
             icon={<Play color={colors.text} size={sizes.icon} fill={colors.text} />}
             onPress={onResume}
             style={styles.flex1}
           />
         )}
         <SecondaryButton
-          label="END"
+          label={t.end}
           icon={<Square color={colors.error} size={sizes.icon} fill={colors.error} />}
           onPress={onFinish}
           style={styles.flex1}
@@ -921,11 +1182,15 @@ function WorkoutScreen({
 // SUMMARY
 // =====================================================================
 function SummaryScreen({
+  t,
+  thai,
   session,
   repResults,
   onTryAgain,
   onHome,
 }: {
+  t: Strings;
+  thai: boolean;
   session: SessionSummary;
   repResults: RepResult[];
   onTryAgain: () => void;
@@ -934,23 +1199,24 @@ function SummaryScreen({
   const { stats } = session;
   const accuracy = calcAccuracy(stats);
   const incorrect = stats.totalReps - stats.goodReps;
+  const track = thai ? styles.noTracking : null;
 
   const errors = [
-    { key: 'shallow', label: 'Too shallow', count: stats.shallowReps, color: colors.error },
-    { key: 'fast', label: 'Too fast', count: stats.fastReps, color: colors.warning },
-    { key: 'wobble', label: 'Unstable (wobble)', count: stats.wobbleReps, color: colors.warning },
+    { key: 'shallow', label: t.errShallow, count: stats.shallowReps, color: colors.error },
+    { key: 'fast', label: t.errFast, count: stats.fastReps, color: colors.warning },
+    { key: 'wobble', label: t.errWobble, count: stats.wobbleReps, color: colors.warning },
   ];
   const topError = [...errors].sort((a, b) => b.count - a.count)[0];
   const hasErrors = topError.count > 0;
 
   const tips: string[] = [];
   if (stats.totalReps === 0) {
-    tips.push('No attempts were detected. Check that the phone is in your front pocket, screen out, and squat until your thigh is close to horizontal.');
+    tips.push(t.tipNone);
   } else {
-    if (stats.shallowReps > 0) tips.push('Squat deeper — bring your thigh closer to horizontal before standing up.');
-    if (stats.fastReps > 0) tips.push('Lower yourself more slowly and with control instead of dropping into the squat.');
-    if (stats.wobbleReps > 0) tips.push('Keep the movement steady — the phone detected a lot of rotation during some reps.');
-    if (tips.length === 0) tips.push('Every recorded attempt met the depth target with controlled speed. Keep it up!');
+    if (stats.shallowReps > 0) tips.push(t.tipShallow);
+    if (stats.fastReps > 0) tips.push(t.tipFast);
+    if (stats.wobbleReps > 0) tips.push(t.tipWobble);
+    if (tips.length === 0) tips.push(t.tipPerfect);
   }
 
   const accColor =
@@ -959,38 +1225,34 @@ function SummaryScreen({
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text variant="title" weight="bold" style={styles.centerText}>Workout complete</Text>
+        <Text variant="title" weight="bold" style={styles.centerText}>{t.workoutComplete}</Text>
         <Text variant="small" style={[styles.mutedText, styles.centerText, styles.summarySub]}>
-          {session.difficulty} · {formatDuration(session.durationMs)}
+          {t[session.difficulty]} · {formatDuration(session.durationMs)}
         </Text>
 
         <SectionCard style={styles.accuracyCard}>
-          <Text variant="caption" weight="bold" style={styles.mutedLabel}>FORM ACCURACY</Text>
-          <Text style={[styles.accuracyValue, { color: accColor }]}>
-            {accuracy === null ? '--' : `${accuracy}%`}
-          </Text>
+          <Text variant="caption" weight="bold" style={[styles.mutedLabel, track]}>{t.formAccuracy}</Text>
+          <Text style={[styles.accuracyValue, { color: accColor }]}>{accuracy === null ? '--' : `${accuracy}%`}</Text>
           <View style={styles.accuracyTrack}>
             <View style={[styles.accuracyFill, { width: `${accuracy ?? 0}%`, backgroundColor: accColor }]} />
           </View>
-          <Text variant="caption" style={styles.mutedText}>
-            {stats.goodReps} of {stats.totalReps} recorded attempts were valid
-          </Text>
+          <Text variant="caption" style={styles.mutedText}>{t.validOf(stats.goodReps, stats.totalReps)}</Text>
         </SectionCard>
 
         <View style={styles.statGrid}>
-          <GridStat value={String(stats.goodReps)} label="Valid reps" color={colors.success} />
-          <GridStat value={String(incorrect)} label="Incorrect" color={incorrect > 0 ? colors.error : colors.text} />
-          <GridStat value={String(stats.totalReps)} label="Total attempts" />
-          <GridStat value={formatDuration(session.durationMs)} label="Duration" />
+          <GridStat value={String(stats.goodReps)} label={t.gridValid} color={colors.success} />
+          <GridStat value={String(incorrect)} label={t.gridIncorrect} color={incorrect > 0 ? colors.error : colors.text} />
+          <GridStat value={String(stats.totalReps)} label={t.gridTotal} />
+          <GridStat value={formatDuration(session.durationMs)} label={t.duration} />
         </View>
 
-        <SectionCard title="FORM ANALYSIS" style={styles.homeCard}>
+        <SectionCard title={t.formAnalysis} style={styles.homeCard}>
           {errors.map((e) => (
             <View key={e.key} style={styles.errorRow}>
               <View style={[styles.errorDot, { backgroundColor: e.color }]} />
               <Text variant="small" style={styles.flex1}>
                 {e.label}
-                {hasErrors && e.key === topError.key ? '  · most common' : ''}
+                {hasErrors && e.key === topError.key ? t.mostCommon : ''}
               </Text>
               <Text variant="body" weight="bold" style={[styles.tabular, { color: e.count > 0 ? e.color : colors.textSecondary }]}>
                 {e.count}
@@ -1009,23 +1271,23 @@ function SummaryScreen({
         <SectionCard style={styles.homeCard}>
           <View style={styles.tipHeader}>
             <Lightbulb color={colors.primary} size={18} />
-            <Text variant="caption" weight="bold" style={styles.mutedLabel}>NEXT TIME</Text>
+            <Text variant="caption" weight="bold" style={[styles.mutedLabel, track]}>{t.nextTime}</Text>
           </View>
-          {tips.map((t, i) => (
-            <Text key={i} variant="small" style={styles.tipText}>• {t}</Text>
+          {tips.map((tip, i) => (
+            <Text key={i} variant="small" style={styles.tipText}>• {tip}</Text>
           ))}
         </SectionCard>
       </ScrollView>
 
       <View style={[styles.bottomBar, styles.workoutActions]}>
         <SecondaryButton
-          label="HOME"
+          label={t.home}
           icon={<House color={colors.text} size={sizes.icon} />}
           onPress={onHome}
           style={styles.flex1}
         />
         <PrimaryButton
-          label="TRY AGAIN"
+          label={t.tryAgain}
           icon={<RotateCcw color={colors.text} size={sizes.icon} />}
           onPress={onTryAgain}
           style={styles.flex1}
@@ -1046,19 +1308,22 @@ function GridStat({ value, label, color }: { value: string; label: string; color
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
-  repGlow: { textShadowColor: 'rgba(255, 255, 255, 0.25)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 24 },
   screen: { flex: 1 },
   flex1: { flex: 1 },
+  flexShrink: { flexShrink: 1 },
   tabular: { fontVariant: ['tabular-nums'] },
   centerText: { textAlign: 'center' },
   mutedText: { color: colors.textSecondary },
   mutedLabel: { color: colors.textSecondary, letterSpacing: typography.letterSpacing.wide },
+  // Thai combining marks must not be letter-spaced.
+  noTracking: { letterSpacing: 0 },
   scrollContent: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
     paddingBottom: spacing.xxl,
   },
   header: { marginBottom: spacing.md },
+  headerActions: { flexDirection: 'row', gap: spacing.sm },
   iconButton: {
     width: sizes.touchTarget,
     height: sizes.touchTarget,
@@ -1069,6 +1334,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.glassBorder,
   },
+  iconSpacer: { width: sizes.touchTarget, height: sizes.touchTarget },
   bottomBar: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
@@ -1132,6 +1398,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
+    gap: spacing.sm,
   },
   topBarTitle: { flex: 1, textAlign: 'center' },
   phoneIllustration: { alignItems: 'center', gap: spacing.sm, marginVertical: spacing.xxl },
@@ -1170,33 +1437,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     height: sizes.touchTarget - 8,
   },
-  workoutBody: { flex: 1, justifyContent: 'center', paddingHorizontal: spacing.xl, gap: spacing.lg },
-  repBlock: { alignItems: 'center' },
+  liveRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.error },
+  workoutBody: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.xl, gap: spacing.md },
+  ringArea: { width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center' },
+  flashGlow: {
+    position: 'absolute',
+    width: RING_SIZE - 40,
+    height: RING_SIZE - 40,
+    borderRadius: (RING_SIZE - 40) / 2,
+    backgroundColor: 'rgba(34, 197, 139, 0.25)',
+    boxShadow: '0px 0px 60px rgba(34, 197, 139, 0.9)',
+  },
+  ringWrap: { width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center' },
+  ringSvg: { position: 'absolute', transform: [{ rotate: '-90deg' }] },
+  ringInner: {
+    width: RING_SIZE - RING_STROKE * 2 - 16,
+    height: RING_SIZE - RING_STROKE * 2 - 16,
+    borderRadius: (RING_SIZE - RING_STROKE * 2 - 16) / 2,
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    borderTopColor: colors.glassHighlight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  repGlow: { textShadowColor: 'rgba(255, 255, 255, 0.25)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 24 },
   repNumber: {
-    fontSize: 140,
-    lineHeight: 160,
+    fontSize: 96,
+    lineHeight: 112,
     fontWeight: typography.weight.bold,
     fontVariant: ['tabular-nums'],
   },
   feedback: { textAlign: 'center', minHeight: 56 },
-  depthCard: { gap: spacing.sm },
-  depthHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  depthTrack: {
-    height: 16,
-    backgroundColor: colors.glassStrong,
-    borderRadius: radius.pill,
-    overflow: 'hidden',
-    justifyContent: 'center',
-  },
-  depthFill: { height: '100%', borderRadius: radius.pill },
-  depthTargetMarker: {
-    position: 'absolute',
-    right: 0,
-    width: 4,
-    height: '100%',
-    backgroundColor: colors.success,
-  },
-  depthLabels: { flexDirection: 'row', justifyContent: 'space-between' },
   dotsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
