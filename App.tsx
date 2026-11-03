@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
-  Dimensions,
   Modal,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -26,7 +25,7 @@ import {
   Sliders,
 } from 'lucide-react-native';
 
-const { width } = Dimensions.get('window');
+import { ThemeProvider } from './src/theme';
 
 type RepState = 'STANDING' | 'DESCENDING' | 'BOTTOM' | 'ASCENDING';
 type Difficulty = 'BEGINNER' | 'PRO';
@@ -42,7 +41,9 @@ interface WorkoutStats {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <SquatSenseMain />
+      <ThemeProvider>
+        <SquatSenseMain />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
@@ -776,7 +777,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   countdownOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(11, 15, 25, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
