@@ -42,9 +42,8 @@ Inspection baseline: 2026-11-03, source commit `fc74d33`. The inspection changed
 
 ## Product assumptions and target flow
 
-- Phone placement assumption: <<< แก้ตรงนี้: e.g., strapped to the front of the right thigh, screen facing out >>>
-  - **TODO:** Confirm actual mounting position, phone orientation, and attachment stability.
-  - Existing countdown instruction at `App.tsx:449` says `Put phone in front pocket & stand upright`. This differs from the proposed strapped-right-thigh example. The code does not select a leg or check screen direction. Its angle interpretation requires the phone's long/y axis to follow the thigh; a loose pocket can move independently.
+- Phone placement assumption: **Front trouser pocket, screen facing out, top of the phone pointing toward the hip.**
+  - Existing countdown instruction at `App.tsx:449` says `Put phone in front pocket & stand upright`, which is consistent with the confirmed placement but omits screen direction and top-of-phone orientation. The code does not select a leg or verify orientation. Its angle interpretation requires the phone's long/y axis to follow the thigh; a loose pocket can move independently. Pocket stability still requires physical-device validation.
 - UI language: <<< แก้ตรงนี้: Thai / English >>>
   - **TODO:** Choose the product language. Current labels are English and `speak` explicitly uses `en-US`; there is no localization system.
 - Target flow: **HOME → CALIBRATION → WORKOUT → SUMMARY**.
@@ -160,7 +159,7 @@ Diagnostics for an attempt that reached depth:
 
 ### Incomplete work and TODOs
 
-- **TODO — product decisions:** resolve the exact phone placement and UI language placeholders above. The current front-pocket instruction conflicts with the proposed strap example.
+- **TODO — product decisions:** resolve the UI language placeholder above. Phone placement and orientation are confirmed in the product assumptions.
 - **TODO — flow:** implement HOME → CALIBRATION → WORKOUT → SUMMARY when requested; there is currently no calibration or routed navigation.
 - **TODO — design:** implement the specified palette, font loading, card radii, status-only colors, and honest empty states in a separately authorized UI task.
 - **TODO — sensor reliability:** obtain explicit authorization before fixing state-lock thresholds, calibration/filtering, diagnostic semantics, timestamp handling, or sample validation; validate on physical phones with the agreed mounting.
